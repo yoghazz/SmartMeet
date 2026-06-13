@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "215439803494",
+    "project_id": "smartmeet-ca635",
+    "storage_bucket": "smartmeet-ca635.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:215439803494:android:0a8833b5106b390d69d9a7",
+        "android_client_info": {
+          "package_name": "com.smartmeet.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACMxeGgXRzXuyXLK9Jd4zvPTLAJF5xAGk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

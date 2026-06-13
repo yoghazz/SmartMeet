@@ -1,0 +1,1 @@
+# SmartMeet app proguard rules
