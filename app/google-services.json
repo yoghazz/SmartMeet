@@ -12,7 +12,20 @@
           "package_name": "com.smartmeet.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "215439803494-j754grqkd52q6g0mi6g82sc1h6h22030.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.smartmeet.app",
+            "certificate_hash": "29348f02fcf2f6baaff36ea8267eeb5364c1cd87"
+          }
+        },
+        {
+          "client_id": "215439803494-77fd4ln89ugq6fdonomn1uvv51u6uma4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyACMxeGgXRzXuyXLK9Jd4zvPTLAJF5xAGk"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "215439803494-77fd4ln89ugq6fdonomn1uvv51u6uma4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
