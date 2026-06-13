@@ -1,0 +1,154 @@
+version: "3.9"
+
+# Production docker-compose — untuk Server B (Ubuntu)
+# Port internal saja; hanya port 8000 yang dibuka ke luar (via firewall)
+# IIS di Server A reverse proxy ke http://SERVER_B_IP:8000
+
+services:
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: smartmeet-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: smartmeet
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-SmartMeet2026!}
+      POSTGRES_DB: smartmeet_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Tidak expose ke host — internal Docker saja
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartmeet"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartmeet-net
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: smartmeet-redis
+    restart: always
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-SmartMeetRedis2026}
+    volumes:
+      - redis_data:/data
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-SmartMeetRedis2026}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - smartmeet-net
+
+  # ── MinIO ──────────────────────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: smartmeet-minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio_data:/data
+    expose:
+      - "9000"
+      - "9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - smartmeet-net
+
+  # ── FastAPI Backend ────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smartmeet-api
+    restart: always
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://smartmeet:${DB_PASSWORD:-SmartMeet2026!}@postgres:5432/smartmeet_db
+      SYNC_DATABASE_URL: postgresql://smartmeet:${DB_PASSWORD:-SmartMeet2026!}@postgres:5432/smartmeet_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-SmartMeetRedis2026}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-SmartMeetRedis2026}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-SmartMeetRedis2026}@redis:6379/2
+      MINIO_ENDPOINT: minio:9000
+      MINIO_SECURE: "false"
+      DEBUG: "false"
+    ports:
+      - "8000:8000"   # Satu-satunya port yang dibuka ke host
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    networks:
+      - smartmeet-net
+
+  # ── Celery Worker ASR ──────────────────────────────────────────────────────
+  worker-asr:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smartmeet-worker-asr
+    restart: always
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://smartmeet:${DB_PASSWORD:-SmartMeet2026!}@postgres:5432/smartmeet_db
+      SYNC_DATABASE_URL: postgresql://smartmeet:${DB_PASSWORD:-SmartMeet2026!}@postgres:5432/smartmeet_db
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-SmartMeetRedis2026}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-SmartMeetRedis2026}@redis:6379/2
+      MINIO_ENDPOINT: minio:9000
+      MINIO_SECURE: "false"
+    depends_on:
+      - redis
+      - postgres
+    command: celery -A app.workers.celery_app worker -Q asr -c 1 --loglevel=info --max-tasks-per-child=10
+    networks:
+      - smartmeet-net
+
+  # ── Celery Worker NLP + DocGen ─────────────────────────────────────────────
+  worker-nlp:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smartmeet-worker-nlp
+    restart: always
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://smartmeet:${DB_PASSWORD:-SmartMeet2026!}@postgres:5432/smartmeet_db
+      SYNC_DATABASE_URL: postgresql://smartmeet:${DB_PASSWORD:-SmartMeet2026!}@postgres:5432/smartmeet_db
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-SmartMeetRedis2026}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-SmartMeetRedis2026}@redis:6379/2
+      MINIO_ENDPOINT: minio:9000
+      MINIO_SECURE: "false"
+    depends_on:
+      - redis
+      - postgres
+    command: celery -A app.workers.celery_app worker -Q nlp,docgen -c 2 --loglevel=info
+    networks:
+      - smartmeet-net
+
+networks:
+  smartmeet-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
