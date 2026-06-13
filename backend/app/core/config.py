@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings
-from pydantic import AnyHttpUrl
-from typing import List
+from pydantic import field_validator
+from typing import List, Union
 import os
 
 
@@ -10,7 +10,15 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
     SECRET_KEY: str
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000"]
+    ALLOWED_ORIGINS: Union[List[str], str] = ["http://localhost:3000"]
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v):
+        if isinstance(v, str):
+            # Support comma-separated: "http://a.com,http://b.com"
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
 
     # Database
     DATABASE_URL: str
