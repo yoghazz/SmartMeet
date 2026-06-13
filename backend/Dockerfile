@@ -5,9 +5,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libsndfile1 \
     curl \
+    git \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Install torch CPU-only dulu (lebih kecil, tidak butuh CUDA)
+RUN pip install --no-cache-dir \
+    torch==2.3.0+cpu \
+    torchaudio==2.3.0+cpu \
+    --index-url https://download.pytorch.org/whl/cpu
 
 # Install Python deps
 COPY requirements.txt .

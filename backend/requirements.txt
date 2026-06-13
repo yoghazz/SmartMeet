@@ -21,7 +21,10 @@ httpx==0.27.0
 
 # AI/ML
 openai==1.35.0
-openai-whisper==20231117
+# Whisper — install torch CPU-only dulu (lebih kecil ~500MB vs 2GB GPU version)
+# torch dan torchaudio di-install via pip index URL di Dockerfile
+openai-whisper>=20231117
+numpy>=1.24.0
 
 # Document generation
 reportlab==4.2.2
