@@ -8,11 +8,33 @@ logger = logging.getLogger(__name__)
 
 
 class NLPService:
-    """AI analysis using OpenAI GPT-4o."""
+    """
+    AI analysis using OpenAI Chat Completions API.
+    Supports any OpenAI-compatible endpoint via OPENAI_BASE_URL:
+    - OpenAI (default, kosongkan OPENAI_BASE_URL)
+    - Ollama: http://localhost:11434/v1
+    - OpenRouter: https://openrouter.ai/api/v1
+    - Groq: https://api.groq.com/openai/v1
+    - vLLM, LM Studio, dll
+    """
 
     def __init__(self):
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        kwargs = {"api_key": settings.OPENAI_API_KEY}
+        if settings.OPENAI_BASE_URL:
+            kwargs["base_url"] = settings.OPENAI_BASE_URL
+        self.client = AsyncOpenAI(**kwargs)
         self.model = settings.OPENAI_MODEL
+
+    def _supports_json_mode(self) -> bool:
+        """
+        response_format json_object tidak didukung semua model/provider.
+        Dinonaktifkan untuk Ollama dan model lokal.
+        """
+        if settings.OPENAI_BASE_URL and "ollama" in settings.OPENAI_BASE_URL.lower():
+            return False
+        if settings.OPENAI_BASE_URL and "localhost:11434" in settings.OPENAI_BASE_URL:
+            return False
+        return True
 
     async def analyze_transcript(
         self,
@@ -70,7 +92,7 @@ Berikan analisis lengkap dalam format JSON dengan struktur PERSIS seperti ini:
 Pastikan JSON valid dan lengkap."""
 
         try:
-            response = await self.client.chat.completions.create(
+            create_kwargs = dict(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -78,8 +100,11 @@ Pastikan JSON valid dan lengkap."""
                 ],
                 max_tokens=settings.OPENAI_MAX_TOKENS,
                 temperature=0.3,
-                response_format={"type": "json_object"},
             )
+            if self._supports_json_mode():
+                create_kwargs["response_format"] = {"type": "json_object"}
+
+            response = await self.client.chat.completions.create(**create_kwargs)
 
             content = response.choices[0].message.content
             result = json.loads(content)
@@ -138,13 +163,16 @@ Format output:
 Buat 5-8 slide yang logis dan informatif."""
 
         try:
-            response = await self.client.chat.completions.create(
+            slide_kwargs = dict(
                 model=self.model,
                 messages=[{"role": "user", "content": user_prompt}],
                 max_tokens=2000,
                 temperature=0.4,
-                response_format={"type": "json_object"},
             )
+            if self._supports_json_mode():
+                slide_kwargs["response_format"] = {"type": "json_object"}
+
+            response = await self.client.chat.completions.create(**slide_kwargs)
             result = json.loads(response.choices[0].message.content)
             return result.get("slides", [])
         except Exception as e:

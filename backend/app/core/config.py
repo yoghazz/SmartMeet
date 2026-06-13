@@ -29,9 +29,14 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
 
-    # OpenAI
-    OPENAI_API_KEY: str
-    OPENAI_MODEL: str = "gpt-4o"
+    # OpenAI / Custom LLM (compatible dengan OpenAI Chat Completions API)
+    # Untuk OpenAI resmi: kosongkan OPENAI_BASE_URL
+    # Untuk custom (Ollama, vLLM, OpenRouter, Groq, dll): isi base URL
+    # Contoh Ollama: http://localhost:11434/v1
+    # Contoh OpenRouter: https://openrouter.ai/api/v1
+    OPENAI_API_KEY: str = "not-required"
+    OPENAI_BASE_URL: str = ""          # kosong = pakai OpenAI resmi
+    OPENAI_MODEL: str = "gpt-4o-mini"
     OPENAI_MAX_TOKENS: int = 4096
 
     # Whisper ASR
